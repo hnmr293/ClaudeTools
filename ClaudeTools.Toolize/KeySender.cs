@@ -19,29 +19,30 @@ public class KeySender
     [DllImport("kernel32.dll")]
     static extern uint GetCurrentThreadId();
 
-    public static void SendKeys(string processName, string text)
+    public static bool SendKeys(string processName, string text)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            SendKeysOnWindows(processName, text);
+            return SendKeysOnWindows(processName, text);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            SendKeysOnLinux(processName, text);
+            return SendKeysOnLinux(processName, text);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            SendKeysOnMacOS(processName, text);
+            return SendKeysOnMacOS(processName, text);
         }
         else
         {
             Console.WriteLine("Unsupported OS.");
+            return false;
         }
     }
 
     // Key input on Linux (using xdotool command as an example)
     [SupportedOSPlatform("linux")]
-    public static void SendKeysOnLinux(string processName, string text)
+    public static bool SendKeysOnLinux(string processName, string text)
     {
         try
         {
@@ -50,7 +51,7 @@ public class KeySender
             if (processes.Length == 0)
             {
                 Console.WriteLine($"Process '{processName}' was not found.");
-                return;
+                return false;
             }
 
             int pid = processes[0].Id;
@@ -88,17 +89,19 @@ public class KeySender
             }
 
             Console.WriteLine("Linux: Text sending completed");
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error occurred while sending keys in Linux environment: {ex.Message}");
             Console.WriteLine("Please make sure xdotool is installed.");
+            return false;
         }
     }
 
     // Key input on macOS (using AppleScript)
     [SupportedOSPlatform("osx")]
-    public static void SendKeysOnMacOS(string processName, string text)
+    public static bool SendKeysOnMacOS(string processName, string text)
     {
         try
         {
@@ -137,16 +140,18 @@ public class KeySender
             }
 
             Console.WriteLine("macOS: Text sending completed");
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error occurred while sending keys in macOS environment: {ex.Message}");
+            return false;
         }
     }
 
     // Windows-specific key sending
     [SupportedOSPlatform("windows")]
-    public static void SendKeysOnWindows(string processName, string text)
+    public static bool SendKeysOnWindows(string processName, string text)
     {
         Console.WriteLine($"Windows: Sending text to process {processName}");
 
@@ -155,7 +160,7 @@ public class KeySender
         if (processes.Length == 0)
         {
             Console.WriteLine($"Process '{processName}' was not found.");
-            return;
+            return false;
         }
 
         Process targetProcess = processes[0];
@@ -164,7 +169,7 @@ public class KeySender
         if (mainWindowHandle == IntPtr.Zero)
         {
             Console.WriteLine("Window handle is invalid.");
-            return;
+            return false;
         }
 
         // Attach thread input to ensure focus
@@ -195,5 +200,6 @@ public class KeySender
         }
 
         Console.WriteLine("Windows: Text sending completed");
+        return true;
     }
 }
