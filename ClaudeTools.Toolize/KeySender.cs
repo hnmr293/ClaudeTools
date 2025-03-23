@@ -10,6 +10,9 @@ public class KeySender
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
 
@@ -155,6 +158,9 @@ public class KeySender
     {
         Console.WriteLine($"Windows: Sending text to process {processName}");
 
+        // Store original foreground window
+        IntPtr originalForegroundWindow = GetForegroundWindow();
+
         // Search for the process
         Process[] processes = Process.GetProcessesByName(processName);
         if (processes.Length == 0)
@@ -197,6 +203,9 @@ public class KeySender
             {
                 AttachThreadInput(currentThreadId, targetThreadId, false);
             }
+
+            // Restore original foreground window
+            SetForegroundWindow(originalForegroundWindow);
         }
 
         Console.WriteLine("Windows: Text sending completed");
