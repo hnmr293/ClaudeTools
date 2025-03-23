@@ -7,27 +7,27 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.WriteLine("KeySender起動しました。引数の数: " + args.Length);
+        Console.WriteLine("KeySender started. Number of arguments: " + args.Length);
         foreach (var arg in args)
         {
-            Console.WriteLine($"引数: '{arg}'");
+            Console.WriteLine($"Argument: '{arg}'");
         }
 
         if (args.Length < 2)
         {
-            Console.WriteLine("使用方法: dotnet run -- <アプリケーション名> <送信する文字列>");
-            Console.WriteLine("例: dotnet run -- notepad こんにちは");
+            Console.WriteLine("Usage: dotnet run -- <application name> <text to send>");
+            Console.WriteLine("Example: dotnet run -- notepad hello");
             return;
         }
 
         string processName = args[0];
         string textToSend = args[1];
 
-        Console.WriteLine($"プロセス名: '{processName}'");
-        Console.WriteLine($"送信テキスト: '{textToSend}'");
-        Console.WriteLine($"現在のOS: {RuntimeInformation.OSDescription}");
+        Console.WriteLine($"Process name: '{processName}'");
+        Console.WriteLine($"Text to send: '{textToSend}'");
+        Console.WriteLine($"Current OS: {RuntimeInformation.OSDescription}");
 
-        // OSに応じた処理の分岐
+        // Branch processing according to OS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             KeySender.SendKeysOnWindows(processName, textToSend);
@@ -42,10 +42,10 @@ class Program
         }
         else
         {
-            Console.WriteLine("サポートされていないOSです。");
+            Console.WriteLine("Unsupported OS.");
         }
 
-        Console.WriteLine("完了しました。Enterキーを押すと終了します。");
+        Console.WriteLine("Completed. Press Enter key to exit.");
         Console.ReadLine();
     }
 }

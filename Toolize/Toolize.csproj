@@ -8,7 +8,6 @@
     <DefineConstants Condition="'$(OS)' == 'Windows_NT'">$(DefineConstants);WINDOWS</DefineConstants>
   </PropertyGroup>
 
-  <!-- Windows向けのみWindowsデスクトップ参照を追加 -->
   <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
     <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
   </ItemGroup>

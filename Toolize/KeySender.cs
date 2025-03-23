@@ -6,7 +6,7 @@ using System.Runtime.Versioning;
 
 class KeySender
 {
-    // Windows API宣言
+    // Windows API declarations
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
@@ -35,29 +35,29 @@ class KeySender
         }
         else
         {
-            Console.WriteLine("サポートされていないOSです。");
+            Console.WriteLine("Unsupported OS.");
         }
     }
 
-    // Linuxでのキー入力（例としてxdotoolコマンドを実行）
+    // Key input on Linux (using xdotool command as an example)
     [SupportedOSPlatform("linux")]
     public static void SendKeysOnLinux(string processName, string text)
     {
         try
         {
-            // プロセスIDの取得（簡易的な方法）
+            // Get process ID (simplified method)
             Process[] processes = Process.GetProcessesByName(processName);
             if (processes.Length == 0)
             {
-                Console.WriteLine($"プロセス '{processName}' が見つかりませんでした。");
+                Console.WriteLine($"Process '{processName}' was not found.");
                 return;
             }
 
             int pid = processes[0].Id;
-            Console.WriteLine($"Linux: プロセス {processName}（PID: {pid}）にテキストを送信します");
+            Console.WriteLine($"Linux: Sending text to process {processName} (PID: {pid})");
 
-            // xdotoolコマンドを使用してウィンドウをアクティブにしテキストを送信
-            // 注意: これにはxdotoolがインストールされている必要があります
+            // Use xdotool command to activate the window and send text
+            // Note: xdotool must be installed
             Process.Start(new ProcessStartInfo
             {
                 FileName = "bash",
@@ -66,24 +66,24 @@ class KeySender
                 CreateNoWindow = true
             })?.WaitForExit();
 
-            Console.WriteLine("Linux: テキスト送信完了");
+            Console.WriteLine("Linux: Text sending completed");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Linux環境でのキー送信中にエラーが発生しました: {ex.Message}");
-            Console.WriteLine("xdotoolがインストールされているか確認してください。");
+            Console.WriteLine($"Error occurred while sending keys in Linux environment: {ex.Message}");
+            Console.WriteLine("Please make sure xdotool is installed.");
         }
     }
 
-    // macOSでのキー入力（AppleScriptを使用）
+    // Key input on macOS (using AppleScript)
     [SupportedOSPlatform("osx")]
     public static void SendKeysOnMacOS(string processName, string text)
     {
         try
         {
-            Console.WriteLine($"macOS: プロセス {processName} にテキストを送信します");
+            Console.WriteLine($"macOS: Sending text to process {processName}");
 
-            // AppleScriptを使用してアプリケーションをアクティブにしテキストを送信
+            // Activate application and send text using AppleScript
             string escapedText = text.Replace("\"", "\\\"");
             string script = $"osascript -e 'tell application \"{processName}\" to activate' -e 'tell application \"System Events\" to keystroke \"{escapedText}\"'";
 
@@ -95,25 +95,25 @@ class KeySender
                 CreateNoWindow = true
             })?.WaitForExit();
 
-            Console.WriteLine("macOS: テキスト送信完了");
+            Console.WriteLine("macOS: Text sending completed");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"macOS環境でのキー送信中にエラーが発生しました: {ex.Message}");
+            Console.WriteLine($"Error occurred while sending keys in macOS environment: {ex.Message}");
         }
     }
 
-    // Windows専用のキー送信
+    // Windows-specific key sending
     [SupportedOSPlatform("windows")]
     public static void SendKeysOnWindows(string processName, string text)
     {
-        Console.WriteLine($"Windows: プロセス {processName} にテキストを送信します");
+        Console.WriteLine($"Windows: Sending text to process {processName}");
 
-        // プロセスを検索
+        // Search for the process
         Process[] processes = Process.GetProcessesByName(processName);
         if (processes.Length == 0)
         {
-            Console.WriteLine($"プロセス '{processName}' が見つかりませんでした。");
+            Console.WriteLine($"Process '{processName}' was not found.");
             return;
         }
 
@@ -122,44 +122,44 @@ class KeySender
 
         if (mainWindowHandle == IntPtr.Zero)
         {
-            Console.WriteLine("ウィンドウハンドルが無効です。");
+            Console.WriteLine("Window handle is invalid.");
             return;
         }
 
-        // スレッドの入力をアタッチして確実にフォーカスを得る
+        // Attach thread input to ensure focus
         uint currentThreadId = GetCurrentThreadId();
         uint targetThreadId = GetWindowThreadProcessId(mainWindowHandle, out uint _);
 
         bool attachResult = false;
         try
         {
-            // 入力スレッドをアタッチ
+            // Attach input thread
             attachResult = AttachThreadInput(currentThreadId, targetThreadId, true);
 
-            // フォアグラウンドに設定
+            // Set to foreground
             SetForegroundWindow(mainWindowHandle);
 
-            // 待機
+            // Wait
             Thread.Sleep(500);
 
-            // SendKeysの特殊文字をエスケープ
+            // Escape special characters for SendKeys
             string escapedText = text.Replace("{", "{{}").Replace("}", "{}}").Replace("+", "{+}")
                                 .Replace("^", "{^}").Replace("%", "{%}").Replace("~", "{~}")
                                 .Replace("(", "{(}").Replace(")", "{)}").Replace("[", "{[}")
                                 .Replace("]", "{]}");
 
-            // テキスト送信
+            // Send text
             System.Windows.Forms.SendKeys.SendWait(escapedText);
         }
         finally
         {
-            // 入力スレッドのデタッチ
+            // Detach input thread
             if (attachResult)
             {
                 AttachThreadInput(currentThreadId, targetThreadId, false);
             }
         }
 
-        Console.WriteLine("Windows: テキスト送信完了");
+        Console.WriteLine("Windows: Text sending completed");
     }
 }
