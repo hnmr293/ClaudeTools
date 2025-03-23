@@ -21,12 +21,26 @@ class Program
 
         string processName = args[0];
         string textToSend = args[1];
+        bool raw = false;
+
+        if (args.Length == 3)
+        {
+            if (args[0] != "--raw" && args[0] != "-r")
+            {
+                Console.WriteLine("Invalid argument: " + args[1]);
+                return 1;
+            }
+            processName = args[1];
+            textToSend = args[2];
+            raw = true;
+        }
 
         Console.WriteLine($"Process name: '{processName}'");
         Console.WriteLine($"Text to send: '{textToSend}'");
         Console.WriteLine($"Current OS: {RuntimeInformation.OSDescription}");
+        Console.WriteLine($"Raw mode: {raw}");
 
-        var success = ClaudeTools.Toolize.KeySender.SendKeys(processName, textToSend);
+        var success = ClaudeTools.Toolize.KeySender.SendKeys(processName, textToSend, raw);
         if (success)
         {
             Console.WriteLine("Completed. Closing...");

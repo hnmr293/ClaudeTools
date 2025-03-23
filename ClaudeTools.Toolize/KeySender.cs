@@ -22,19 +22,19 @@ public class KeySender
     [DllImport("kernel32.dll")]
     static extern uint GetCurrentThreadId();
 
-    public static bool SendKeys(string processName, string text)
+    public static bool SendKeys(string processName, string text, bool raw = false)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return SendKeysOnWindows(processName, text);
+            return SendKeysOnWindows(processName, text, raw);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return SendKeysOnLinux(processName, text);
+            return SendKeysOnLinux(processName, text, raw);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return SendKeysOnMacOS(processName, text);
+            return SendKeysOnMacOS(processName, text, raw);
         }
         else
         {
@@ -45,7 +45,7 @@ public class KeySender
 
     // Key input on Linux (using xdotool command as an example)
     [SupportedOSPlatform("linux")]
-    public static bool SendKeysOnLinux(string processName, string text)
+    public static bool SendKeysOnLinux(string processName, string text, bool raw = false)
     {
         try
         {
@@ -62,7 +62,7 @@ public class KeySender
 
             // Use xdotool command to activate the window and send text
             // Note: xdotool must be installed
-            string[] lines = KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Linux);
+            string[] lines = raw ? new[] { text } : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Linux);
             var command = $"-c \"xdotool search --pid {pid} windowactivate --sync && xdotool";
             for (int i = 0; i < lines.Length; i++)
             {
@@ -104,14 +104,14 @@ public class KeySender
 
     // Key input on macOS (using AppleScript)
     [SupportedOSPlatform("osx")]
-    public static bool SendKeysOnMacOS(string processName, string text)
+    public static bool SendKeysOnMacOS(string processName, string text, bool raw = false)
     {
         try
         {
             Console.WriteLine($"macOS: Sending text to process {processName}");
 
             // Activate application and send text using AppleScript
-            string[] lines = KeyInputParser.ParseForOS(text, KeyInputParser.OSType.MacOS);
+            string[] lines = raw ? new[] { text } : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.MacOS);
             for (int i = 0; i < lines.Length; i++)
             {
                 if (i > 0)
@@ -154,9 +154,9 @@ public class KeySender
 
     // Windows-specific key sending
     [SupportedOSPlatform("windows")]
-    public static bool SendKeysOnWindows(string processName, string text)
+    public static bool SendKeysOnWindows(string processName, string text, bool raw = false)
     {
-        Console.WriteLine($"Windows: Sending text to process {processName}");
+        Console.WriteLine($"Windows: Sending text to process {processName} (raw={raw})");
 
         // Store original foreground window
         IntPtr originalForegroundWindow = GetForegroundWindow();
@@ -191,10 +191,13 @@ public class KeySender
             // Set to foreground
             SetForegroundWindow(mainWindowHandle);
 
-            var escapedText = KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
+            var escapedText = raw ? text : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
+            Console.WriteLine($"Windows: Sending text '{escapedText}' (passed: `{text}`)");
 
             // Send text
             System.Windows.Forms.SendKeys.SendWait(escapedText);
+
+            Console.WriteLine("Windows: Text sending completed");
         }
         finally
         {
@@ -208,7 +211,6 @@ public class KeySender
             SetForegroundWindow(originalForegroundWindow);
         }
 
-        Console.WriteLine("Windows: Text sending completed");
         return true;
     }
 }
