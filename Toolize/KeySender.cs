@@ -139,9 +139,6 @@ class KeySender
             // Set to foreground
             SetForegroundWindow(mainWindowHandle);
 
-            // Wait
-            Thread.Sleep(500);
-
             // Escape special characters for SendKeys
             string escapedText = text.Replace("{", "{{}").Replace("}", "{}}").Replace("+", "{+}")
                                 .Replace("^", "{^}").Replace("%", "{%}").Replace("~", "{~}")
