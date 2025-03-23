@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Runtime.Versioning;
 
-namespace ClaudeTools;
+namespace ClaudeTools.Toolize;
 
 class KeySender
 {
@@ -60,13 +60,34 @@ class KeySender
 
             // Use xdotool command to activate the window and send text
             // Note: xdotool must be installed
-            Process.Start(new ProcessStartInfo
+            string[] lines = KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Linux);
+            var command = $"-c \"xdotool search --pid {pid} windowactivate --sync && xdotool";
+            for (int i = 0; i < lines.Length; i++)
             {
-                FileName = "bash",
-                Arguments = $"-c \"xdotool search --pid {pid} windowactivate --sync && xdotool type '{text}'\"",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            })?.WaitForExit();
+                if (i > 0)
+                {
+                    // send newline
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "bash",
+                        Arguments = $"{command} key Return\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    })?.WaitForExit();
+                }
+
+                if (!string.IsNullOrEmpty(lines[i]))
+                {
+                    // send text
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "bash",
+                        Arguments = $"{command} type '{lines[i]}'\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    })?.WaitForExit();
+                }
+            }
 
             Console.WriteLine("Linux: Text sending completed");
         }
@@ -86,16 +107,36 @@ class KeySender
             Console.WriteLine($"macOS: Sending text to process {processName}");
 
             // Activate application and send text using AppleScript
-            string escapedText = text.Replace("\"", "\\\"");
-            string script = $"osascript -e 'tell application \"{processName}\" to activate' -e 'tell application \"System Events\" to keystroke \"{escapedText}\"'";
-
-            Process.Start(new ProcessStartInfo
+            string[] lines = KeyInputParser.ParseForOS(text, KeyInputParser.OSType.MacOS);
+            for (int i = 0; i < lines.Length; i++)
             {
-                FileName = "bash",
-                Arguments = $"-c \"{script}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            })?.WaitForExit();
+                if (i > 0)
+                {
+                    // send newline
+                    string returnKeyScript = $"osascript -e 'tell application \"System Events\" to keystroke return'";
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "bash",
+                        Arguments = $"-c \"{returnKeyScript}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    })?.WaitForExit();
+                }
+
+                if (!string.IsNullOrEmpty(lines[i]))
+                {
+                    // send text
+                    string escapedText = lines[i].Replace("\"", "\\\"");
+                    string script = $"osascript -e 'tell application \"{processName}\" to activate' -e 'tell application \"System Events\" to keystroke \"{escapedText}\"'";
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "bash",
+                        Arguments = $"-c \"{script}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    })?.WaitForExit();
+                }
+            }
 
             Console.WriteLine("macOS: Text sending completed");
         }
@@ -141,11 +182,7 @@ class KeySender
             // Set to foreground
             SetForegroundWindow(mainWindowHandle);
 
-            // Escape special characters for SendKeys
-            string escapedText = text.Replace("{", "{{}").Replace("}", "{}}").Replace("+", "{+}")
-                                .Replace("^", "{^}").Replace("%", "{%}").Replace("~", "{~}")
-                                .Replace("(", "{(}").Replace(")", "{)}").Replace("[", "{[}")
-                                .Replace("]", "{]}");
+            var escapedText = KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
 
             // Send text
             System.Windows.Forms.SendKeys.SendWait(escapedText);
