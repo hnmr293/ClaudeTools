@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Threading;
 
+namespace ClaudeTools;
+
 class Program
 {
     static void Main(string[] args)

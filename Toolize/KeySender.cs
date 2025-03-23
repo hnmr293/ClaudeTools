@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Runtime.Versioning;
 
+namespace ClaudeTools;
+
 class KeySender
 {
     // Windows API declarations
