@@ -1,12 +1,10 @@
-using System;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
-using System.Threading;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
 namespace ClaudeTools.Toolize;
 
-class KeySender
+public class KeySender
 {
     // Windows API declarations
     [DllImport("user32.dll")]

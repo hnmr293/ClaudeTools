@@ -1,14 +1,22 @@
-using System;
 using System.Text;
-using System.Collections.Generic;
 
 namespace ClaudeTools.Toolize;
 
 /// <summary>
 /// Parser class for handling escape sequences and converting strings for SendKeys
 /// </summary>
-public static class KeyInputParser
+public abstract class KeyInputParser
 {
+    /// <summary>
+    /// Target OS types
+    /// </summary>
+    public enum OSType
+    {
+        Windows,
+        Linux,
+        MacOS
+    }
+
     /// <summary>
     /// Processes escape sequences in a string and converts it to the appropriate format for each OS
     /// </summary>
@@ -18,202 +26,240 @@ public static class KeyInputParser
     public static string[] ParseForOS(string input, OSType osType)
     {
         if (input == null)
-            return new string[0];
+            return Array.Empty<string>();
 
         if (osType == OSType.Windows)
         {
             // For Windows, return a single string escaped for SendKeys
-            return new string[] { ParseForWindows(input) };
+            return new WindowsKeyInputParser().Parse(input);
         }
         else
         {
             // For Linux/macOS, return a list of strings split by newlines
-            return ParseForUnixLike(input);
+            return new UnixKeyInputParser().Parse(input);
         }
     }
 
-    /// <summary>
-    /// Converts a string for Windows SendKeys
-    /// </summary>
-    /// <param name="input">The string to process</param>
-    /// <returns>Escaped string for SendKeys</returns>
-    private static string ParseForWindows(string input)
+    protected abstract void OnChar(
+        string input,
+        int index,
+        List<string> lines,
+        StringBuilder currentLine,
+        ReadOnlySpan<char> current
+    );
+
+    public virtual string[] Parse(string input)
     {
-        StringBuilder result = new StringBuilder();
-        bool escaped = false;
+        var currentLine = new StringBuilder();
+        var lines = new List<string>();
 
-        for (int i = 0; i < input.Length; i++)
+        Span<char> hexChar = stackalloc char[2];
+
+        var index = 0;
+        while (index < input.Length)
         {
-            char c = input[i];
-
-            if (escaped)
+            // エスケープシーケンスの検出
+            if (input[index] == '\\' && index + 1 < input.Length)
             {
-                // Process escaped characters
+                char c = input[index + 1];
+
                 switch (c)
                 {
-                    case 'n': // \n -> {ENTER}
-                        result.Append("{ENTER}");
+                    case 'n': // 改行
+                        OnChar(input, index, lines, currentLine, "\n");
+                        index += 2;
                         break;
-                    case 'r': // \r is ignored (\r\n is processed as \n)
-                        if (i + 1 < input.Length && input[i + 1] == '\n')
+                    case 'r': // キャリッジリターン
+                        if (index + 3 < input.Length && input[index + 2] == '\\' && input[index + 3] == 'n')
                         {
-                            i++; // Skip \n
+                            OnChar(input, index, lines, currentLine, "\n");
+                            index += 4;
+                        }
+                        else
+                        {
+                            OnChar(input, index, lines, currentLine, "\n");
+                            index += 2;
                         }
                         break;
-                    case 't': // \t -> {TAB}
-                        result.Append("{TAB}");
+                    case 't': // 水平タブ
+                        OnChar(input, index, lines, currentLine, "\t");
+                        index += 2;
                         break;
-                    case '\\': // \\ -> \
-                        result.Append("\\");
+                    case '\\': // バックスラッシュ
+                        OnChar(input, index, lines, currentLine, "\\");
+                        index += 2;
                         break;
-                    default: // Other escape sequences
-                        result.Append('\\').Append(c);
+                    case 'x': // 16進数エスケープ（2桁の16進数）
+                        if (index + 4 < input.Length)
+                        {
+                            var hex = input.AsSpan()[(index + 2)..(index + 4)];
+                            if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out int code))
+                            {
+                                hexChar[0] = (char)code;
+                                OnChar(input, index, lines, currentLine, hexChar[0..1]);
+                                index += 4;
+                            }
+                            else
+                            {
+                                // 不正な16進数エスケープ
+                                OnChar(input, index, lines, currentLine, "x");
+                                index += 2;
+                            }
+                        }
+                        else
+                        {
+                            // 文字列が短すぎる場合
+                            OnChar(input, index, lines, currentLine, "x");
+                            index += 2;
+                        }
+                        break;
+                    case 'u': // Unicodeエスケープ（4桁の16進数）
+                        if (index + 6 < input.Length)
+                        {
+                            var hex = input.AsSpan()[(index + 2)..(index + 6)];
+                            if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out int code))
+                            {
+                                hexChar[0] = (char)(code & 0xffff);
+                                hexChar[1] = (char)(code >> 16);
+                                if (code < 0x1_0000)
+                                {
+                                    OnChar(input, index, lines, currentLine, hexChar[0..1]);
+                                }
+                                else
+                                {
+                                    OnChar(input, index, lines, currentLine, hexChar);
+                                }
+                                index += 6;
+                            }
+                            else
+                            {
+                                // 不正なUnicodeエスケープ
+                                OnChar(input, index, lines, currentLine, "u");
+                                index += 2;
+                            }
+                        }
+                        else
+                        {
+                            // 文字列が短すぎる場合
+                            OnChar(input, index, lines, currentLine, "u");
+                            index += 2;
+                        }
+                        break;
+                    case 'U': // Unicodeエスケープ（8桁の16進数）
+                        if (index + 10 < input.Length)
+                        {
+                            var hex = input.AsSpan()[(index + 2)..(index + 10)];
+                            if (int.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out int code))
+                            {
+                                hexChar[0] = (char)(code & 0xffff);
+                                hexChar[1] = (char)(code >> 16);
+                                if (code < 0x1_0000)
+                                {
+                                    OnChar(input, index, lines, currentLine, hexChar[0..1]);
+                                }
+                                else
+                                {
+                                    OnChar(input, index, lines, currentLine, hexChar);
+                                }
+                                index += 10;
+                            }
+                            else
+                            {
+                                // 不正なUnicodeエスケープ
+                                OnChar(input, index, lines, currentLine, "U");
+                                index += 2;
+                            }
+                        }
+                        else
+                        {
+                            // 文字列が短すぎる場合
+                            OnChar(input, index, lines, currentLine, "U");
+                            index += 2;
+                        }
+                        break;
+                    default: // 認識できないエスケープシーケンス
+                        OnChar(input, index, lines, currentLine, input.AsSpan()[(index + 1)..(index + 2)]);
+                        index += 2;
                         break;
                 }
-                escaped = false;
             }
-            else if (c == '\\')
+            else if (input[index] == '\r')
             {
-                // Enter escape mode when a backslash is detected
-                escaped = true;
-            }
-            else if (c == '\r')
-            {
-                // Actual \r character is ignored
-                if (i + 1 < input.Length && input[i + 1] == '\n')
+                if (index + 1 < input.Length && input[index + 1] == '\n')
                 {
-                    result.Append("{ENTER}");
-                    i++; // Skip \n
+                    OnChar(input, index, lines, currentLine, "\n");
+                    index += 2;
                 }
-            }
-            else if (c == '\n')
-            {
-                // Actual \n character is converted to {ENTER}
-                result.Append("{ENTER}");
+                else if (index + 2 < input.Length && input[index + 1] == '\\' && input[index + 2] == 'n')
+                {
+                    OnChar(input, index, lines, currentLine, "\n");
+                    index += 3;
+                }
+                else
+                {
+                    OnChar(input, index, lines, currentLine, "\n");
+                    index += 1;
+                }
             }
             else
             {
-                // Escape special characters for SendKeys
-                switch (c)
-                {
-                    case '+':
-                    case '^':
-                    case '%':
-                    case '~':
-                    case '(':
-                    case ')':
-                    case '[':
-                    case ']':
-                        result.Append('{').Append(c).Append('}');
-                        break;
-                    case '{':
-                        result.Append("{{");
-                        break;
-                    case '}':
-                        result.Append("}}");
-                        break;
-                    default:
-                        result.Append(c);
-                        break;
-                }
+                // 通常の文字
+                OnChar(input, index, lines, currentLine, input.AsSpan()[index..(index + 1)]);
+                index += 1;
             }
         }
 
-        // Handle case where string ends with an escape character
-        if (escaped)
-        {
-            result.Append('\\');
-        }
-
-        return result.ToString();
-    }
-
-    /// <summary>
-    /// Splits a string by newlines for Linux/macOS
-    /// </summary>
-    /// <param name="input">The string to process</param>
-    /// <returns>List of strings split by newlines</returns>
-    private static string[] ParseForUnixLike(string input)
-    {
-        StringBuilder currentLine = new StringBuilder();
-        List<string> lines = new List<string>();
-        bool escaped = false;
-
-        for (int i = 0; i < input.Length; i++)
-        {
-            char c = input[i];
-
-            if (escaped)
-            {
-                // Process escaped characters
-                switch (c)
-                {
-                    case 'n': // \n - treated as a literal character, not a newline
-                        currentLine.Append("\\n");
-                        break;
-                    case 'r': // \r - treated as a literal character, not a newline
-                        currentLine.Append("\\r");
-                        break;
-                    case 't': // \t - add as a tab character
-                        currentLine.Append("\t");
-                        break;
-                    case '\\': // \\ - add as a backslash
-                        currentLine.Append("\\");
-                        break;
-                    default: // Other escape sequences
-                        currentLine.Append('\\').Append(c);
-                        break;
-                }
-                escaped = false;
-            }
-            else if (c == '\\')
-            {
-                // Enter escape mode when a backslash is detected
-                escaped = true;
-            }
-            else if (c == '\r')
-            {
-                // Actual \r character is ignored
-                if (i + 1 < input.Length && input[i + 1] == '\n')
-                {
-                    lines.Add(currentLine.ToString());
-                    currentLine.Clear();
-                    i++; // Skip \n
-                }
-            }
-            else if (c == '\n')
-            {
-                // Actual \n character is treated as a line separator
-                lines.Add(currentLine.ToString());
-                currentLine.Clear();
-            }
-            else
-            {
-                // Normal characters are added as-is
-                currentLine.Append(c);
-            }
-        }
-
-        // Add the last line
-        if (currentLine.Length > 0 || escaped)
-        {
-            if (escaped)
-            {
-                currentLine.Append('\\');
-            }
-            lines.Add(currentLine.ToString());
-        }
+        // 末尾に改行があれば最後に空文字列を足す
+        lines.Add(currentLine.ToString());
 
         return lines.ToArray();
     }
+}
 
-    /// <summary>
-    /// Target OS types
-    /// </summary>
-    public enum OSType
+
+public class WindowsKeyInputParser : KeyInputParser
+{
+    protected override void OnChar(string input, int index, List<string> lines, StringBuilder currentLine, ReadOnlySpan<char> current)
     {
-        Windows,
-        Linux,
-        MacOS
+        if (current[0] == '\n')
+        {
+            currentLine.Append("{ENTER}");
+        }
+        else if (current[0] == '\t')
+        {
+            currentLine.Append("{TAB}");
+        }
+        else
+        {
+            // Escape special characters for SendKeys
+            // +, ^, %, ~, (, ), [, ], {, }
+            if ("+^%~()[]{}".AsSpan().Contains(current, StringComparison.InvariantCulture))
+            {
+                currentLine.Append('{');
+                currentLine.Append(current);
+                currentLine.Append('}');
+            }
+            else
+            {
+                currentLine.Append(current);
+            }
+        }
+    }
+}
+
+
+public class UnixKeyInputParser : KeyInputParser
+{
+    protected override void OnChar(string input, int index, List<string> lines, StringBuilder currentLine, ReadOnlySpan<char> current)
+    {
+        if (current[0] == '\n')
+        {
+            lines.Add(currentLine.ToString());
+            currentLine.Clear();
+        }
+        else
+        {
+            currentLine.Append(current);
+        }
     }
 }

@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClaudeTools.Toolize", "Clau
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClaudeTools.Toolize.Tests", "ClaudeTools.Toolize.Tests\ClaudeTools.Toolize.Tests.csproj", "{55A167AB-002D-46F0-920A-C29CCBD7F806}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClaudeTools.Cui", "ClaudeTools.Cui\ClaudeTools.Cui.csproj", "{86A5873A-6335-41B9-AE9D-CF35AE30CC59}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{55A167AB-002D-46F0-920A-C29CCBD7F806}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{55A167AB-002D-46F0-920A-C29CCBD7F806}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{55A167AB-002D-46F0-920A-C29CCBD7F806}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86A5873A-6335-41B9-AE9D-CF35AE30CC59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86A5873A-6335-41B9-AE9D-CF35AE30CC59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86A5873A-6335-41B9-AE9D-CF35AE30CC59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86A5873A-6335-41B9-AE9D-CF35AE30CC59}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
