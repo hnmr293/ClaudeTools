@@ -27,23 +27,7 @@ class Program
         Console.WriteLine($"Text to send: '{textToSend}'");
         Console.WriteLine($"Current OS: {RuntimeInformation.OSDescription}");
 
-        // Branch processing according to OS
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            KeySender.SendKeysOnWindows(processName, textToSend);
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            KeySender.SendKeysOnLinux(processName, textToSend);
-        }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-        {
-            KeySender.SendKeysOnMacOS(processName, textToSend);
-        }
-        else
-        {
-            Console.WriteLine("Unsupported OS.");
-        }
+        KeySender.SendKeys(processName, textToSend);
 
         Console.WriteLine("Completed. Press Enter key to exit.");
         Console.ReadLine();
