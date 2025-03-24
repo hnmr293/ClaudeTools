@@ -7,6 +7,12 @@ namespace ClaudeTools.Toolize;
 public class KeySender
 {
     // Windows API declarations
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+    [DllImport("user32.dll")]
+    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
 
@@ -176,7 +182,25 @@ public class KeySender
 
         if (mainWindowHandle == IntPtr.Zero)
         {
+            var foundHandles = new List<IntPtr>();
+            bool EnumWindowsCallback(IntPtr handle, IntPtr lParam)
+            {
+                GetWindowThreadProcessId(handle, out uint processId);
+                if (processId == targetProcess.Id)
+                {
+                    foundHandles.Add(handle);
+                }
+                return true; // continue enumeration
+            }
+
             Console.WriteLine("Window handle is invalid.");
+
+            // show all window handles for debugging
+            EnumWindows(EnumWindowsCallback, IntPtr.Zero);
+            foreach (var handle in foundHandles)
+            {
+                Console.WriteLine($"handle = {handle:X16}");
+            }
             return false;
         }
 
@@ -191,6 +215,7 @@ public class KeySender
             attachResult = AttachThreadInput(currentThreadId, targetThreadId, true);
 
             // Set to foreground
+            ShowWindow(mainWindowHandle, 9 /* SW_RESTORE */);
             SetForegroundWindow(mainWindowHandle);
 
             var escapedText = raw ? text : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
