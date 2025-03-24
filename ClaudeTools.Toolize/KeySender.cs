@@ -170,6 +170,8 @@ public class KeySender
         }
 
         Process targetProcess = processes[0];
+        targetProcess.WaitForInputIdle(1000);
+
         IntPtr mainWindowHandle = targetProcess.MainWindowHandle;
 
         if (mainWindowHandle == IntPtr.Zero)
