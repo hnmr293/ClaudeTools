@@ -4,6 +4,7 @@ namespace ClaudeTools.Cui;
 
 class Program
 {
+    [STAThread]
     static int Main(string[] args)
     {
         Console.WriteLine("KeySender started. Number of arguments: " + args.Length);

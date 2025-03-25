@@ -16,6 +16,13 @@ namespace ClaudeTools.Toolize
 
         [DllImport("user32.dll")]
         private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
+
         [DllImport("user32.dll")]
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
@@ -34,10 +41,109 @@ namespace ClaudeTools.Toolize
         [DllImport("kernel32.dll")]
         static extern uint GetCurrentThreadId();
 
+        private class ClipboardManager : IDisposable
+        {
+            private Dictionary<string, object> saved = new();
+            private bool disposedValue;
+
+            public ClipboardManager()
+            {
+                var currentData = System.Windows.Forms.Clipboard.GetDataObject();
+                if (currentData is not null)
+                {
+                    foreach (var format in currentData.GetFormats())
+                    {
+                        var formattedData = currentData.GetData(format);
+                        if (formattedData is not null)
+                        {
+                            saved[format] = formattedData;
+                        }
+                    }
+                }
+            }
+
+            protected virtual void Dispose(bool disposing)
+            {
+                if (!disposedValue)
+                {
+                    if (disposing)
+                    {
+                        // do nothing here
+                    }
+
+                    try
+                    {
+                        var restored = new System.Windows.Forms.DataObject();
+                        foreach (var pair in saved)
+                        {
+                            restored.SetData(pair.Key, pair.Value);
+                        }
+                        System.Windows.Forms.Clipboard.SetDataObject(restored, true);
+                    }
+                    catch (Exception e)
+                    {
+                        Log($"Error = {e.Message}");
+                    }
+                    finally
+                    {
+                        disposedValue = true;
+                    }
+                }
+            }
+
+            ~ClipboardManager()
+            {
+                Dispose(disposing: false);
+            }
+
+            public void Dispose()
+            {
+                Dispose(disposing: true);
+                GC.SuppressFinalize(this);
+            }
+        }
+
         public static bool SendKeys(string processName, string text, bool raw = false)
         {
             Log($"Sending text to process {processName} (raw={raw})");
 
+            if (raw)
+            {
+                return SendKeysWithApi(processName, text, true);
+            }
+            else
+            {
+                return SendKeysWithClipboard(processName, text);
+            }
+        }
+
+        public static bool SendKeysWithApi(string processName, string text, bool raw = false)
+        {
+            return sendKeysImpl(s =>
+            {
+                var escapedText = raw ? text : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
+                Log($"Sending text (via SendKyes) '{escapedText}' (passed: `{s}`)");
+                System.Windows.Forms.SendKeys.SendWait(escapedText);
+            }, processName, text);
+        }
+
+        public static bool SendKeysWithClipboard(string processName, string text)
+        {
+            using var _ = new ClipboardManager();
+            return sendKeysImpl(s =>
+            {
+                Log($"Sending text (via clipboard) '{s}'");
+                System.Windows.Forms.Clipboard.SetText(s);
+                System.Windows.Forms.SendKeys.SendWait("_{BS}^v");
+            }, processName, text);
+        }
+
+        private static bool sendKeysImpl(
+            Action<string> callback,
+            string processName,
+            string text
+        )
+        {
             // Store original foreground window
             IntPtr originalForegroundWindow = GetForegroundWindow();
 
@@ -92,13 +198,10 @@ namespace ClaudeTools.Toolize
                 ShowWindow(mainWindowHandle, 9 /* SW_RESTORE */);
                 SetForegroundWindow(mainWindowHandle);
 
-                var escapedText = raw ? text : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
-                Log($"Sending text '{escapedText}' (passed: `{text}`)");
-
                 // Send text
-                System.Windows.Forms.SendKeys.SendWait(escapedText);
+                callback(text);
 
-                Log("Text sending completed");
+                Log("completed");
             }
             finally
             {
@@ -114,6 +217,7 @@ namespace ClaudeTools.Toolize
 
             return true;
         }
+
 #elif OSX
         public static bool SendKeys(string processName, string text, bool raw = false)
         {
@@ -153,7 +257,7 @@ namespace ClaudeTools.Toolize
                     }
                 }
 
-                Console.WriteLine("Text sending completed");
+                Console.WriteLine("completed");
                 return true;
             }
             catch (Exception ex)
@@ -209,7 +313,7 @@ namespace ClaudeTools.Toolize
                     }
                 }
 
-                Console.WriteLine("Text sending completed");
+                Console.WriteLine("completed");
                 return true;
             }
             catch (Exception ex)
