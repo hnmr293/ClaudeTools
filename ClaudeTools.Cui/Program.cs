@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using ClaudeTools.Toolize;
+using System.Runtime.InteropServices;
 
 namespace ClaudeTools.Cui;
 
@@ -21,27 +22,34 @@ class Program
         }
 
         string processName = args[0];
-        string textToSend = args[1];
-        bool raw = false;
-
-        if (args.Length == 3)
+        var keys = new List<InputKeys>();
+        var i = 1;
+        while (i < args.Length)
         {
-            if (args[0] != "--raw" && args[0] != "-r")
+            var raw = false;
+            if (args[i] == "--raw" || args[i] == "-r")
             {
-                Console.WriteLine("Invalid argument: " + args[1]);
-                return 1;
+                raw = true;
+                i += 1;
+                if (i == args.Length)
+                {
+                    Console.WriteLine($"Invalid argument: {string.Join(", ", args)}");
+                    return 1;
+                }
             }
-            processName = args[1];
-            textToSend = args[2];
-            raw = true;
+            var key = args[i];
+            keys.Add(new InputKeys(key, raw));
+            i += 1;
         }
 
         Console.WriteLine($"Process name: '{processName}'");
-        Console.WriteLine($"Text to send: '{textToSend}'");
+        for (var j = 0; j < keys.Count; ++j)
+        {
+            Console.WriteLine($"Text to send {j}: '{keys[j].Keys}' (raw={keys[j].Raw})");
+        }
         Console.WriteLine($"Current OS: {RuntimeInformation.OSDescription}");
-        Console.WriteLine($"Raw mode: {raw}");
 
-        var success = ClaudeTools.Toolize.KeySender.SendKeys(processName, textToSend, raw);
+        var success = KeySender.SendKeys(processName, keys);
         if (success)
         {
             Console.WriteLine("Completed. Closing...");

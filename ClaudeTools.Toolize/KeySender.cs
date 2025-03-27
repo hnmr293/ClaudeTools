@@ -2,8 +2,10 @@ namespace ClaudeTools.Toolize;
 
 public class KeySender
 {
-    public static bool SendKeys(string processName, string text, bool raw = false)
+    public static bool SendKeys(string processName, List<InputKeys> inputKeys)
     {
-        return KeySenderImpl.SendKeys(processName, text, raw);
+        return KeySenderImpl.SendKeys(processName, inputKeys);
     }
 }
+
+public record InputKeys(string Keys, bool Raw = false);

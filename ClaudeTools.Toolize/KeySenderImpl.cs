@@ -103,47 +103,10 @@ namespace ClaudeTools.Toolize
             }
         }
 
-        public static bool SendKeys(string processName, string text, bool raw = false)
+        public static bool SendKeys(string processName, List<InputKeys> inputKeys)
         {
-            Log($"Sending text to process {processName} (raw={raw})");
+            Log($"Sending text to process {processName}");
 
-            if (raw)
-            {
-                return SendKeysWithApi(processName, text, true);
-            }
-            else
-            {
-                return SendKeysWithClipboard(processName, text);
-            }
-        }
-
-        public static bool SendKeysWithApi(string processName, string text, bool raw = false)
-        {
-            return sendKeysImpl(s =>
-            {
-                var escapedText = raw ? text : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
-                Log($"Sending text (via SendKyes) '{escapedText}' (passed: `{s}`)");
-                System.Windows.Forms.SendKeys.SendWait(escapedText);
-            }, processName, text);
-        }
-
-        public static bool SendKeysWithClipboard(string processName, string text)
-        {
-            using var _ = new ClipboardManager();
-            return sendKeysImpl(s =>
-            {
-                Log($"Sending text (via clipboard) '{s}'");
-                System.Windows.Forms.Clipboard.SetText(s);
-                System.Windows.Forms.SendKeys.SendWait("_{BS}^v");
-            }, processName, text);
-        }
-
-        private static bool sendKeysImpl(
-            Action<string> callback,
-            string processName,
-            string text
-        )
-        {
             // Store original foreground window
             IntPtr originalForegroundWindow = GetForegroundWindow();
 
@@ -199,9 +162,27 @@ namespace ClaudeTools.Toolize
                 SetForegroundWindow(mainWindowHandle);
 
                 // Send text
-                callback(text);
+                foreach (var key in inputKeys)
+                {
+                    if (key.Raw)
+                    {
+                        if (!SendKeysWithApi(processName, key.Keys, true))
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        if (!SendKeysWithClipboard(processName, key.Keys))
+                        {
+                            return false;
+                        }
+                    }
+                }
 
                 Log("completed");
+
+                return true;
             }
             finally
             {
@@ -214,10 +195,24 @@ namespace ClaudeTools.Toolize
                 // Restore original foreground window
                 SetForegroundWindow(originalForegroundWindow);
             }
+        }
 
+        public static bool SendKeysWithApi(string processName, string text, bool raw = false)
+        {
+            var escapedText = raw ? text : KeyInputParser.ParseForOS(text, KeyInputParser.OSType.Windows)[0];
+            Log($"Sending text (via SendKyes) '{escapedText}' (passed: `{text}`)");
+            System.Windows.Forms.SendKeys.SendWait(escapedText);
             return true;
         }
 
+        public static bool SendKeysWithClipboard(string processName, string text)
+        {
+            using var _ = new ClipboardManager();
+            Log($"Sending text (via clipboard) '{text}'");
+            System.Windows.Forms.Clipboard.SetText(text);
+            System.Windows.Forms.SendKeys.SendWait("_{BS}^v");
+            return true;
+        }
 #elif OSX
         public static bool SendKeys(string processName, string text, bool raw = false)
         {
