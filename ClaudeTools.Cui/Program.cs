@@ -22,8 +22,21 @@ class Program
         }
 
         string processName = args[0];
+        string? windowTitle = null;
         var keys = new List<InputKeys>();
         var i = 1;
+
+        if (args.Length >= 2 && (args[1] == "--window" || args[1] == "-w"))
+        {
+            if (args.Length == 2)
+            {
+                Console.WriteLine("-w/--window was specified but no window title was provided.");
+                return 1;
+            }
+            windowTitle = args[2];
+            i += 2;
+        }
+
         while (i < args.Length)
         {
             var raw = false;
@@ -49,7 +62,7 @@ class Program
         }
         Console.WriteLine($"Current OS: {RuntimeInformation.OSDescription}");
 
-        var success = KeySender.SendKeys(processName, keys);
+        var success = KeySender.SendKeys(processName, windowTitle, keys);
         if (success)
         {
             Console.WriteLine("Completed. Closing...");

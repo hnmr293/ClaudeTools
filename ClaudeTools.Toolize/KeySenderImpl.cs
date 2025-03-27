@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace ClaudeTools.Toolize
 {
@@ -14,8 +15,11 @@ namespace ClaudeTools.Toolize
         // Windows API declarations
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -103,9 +107,9 @@ namespace ClaudeTools.Toolize
             }
         }
 
-        public static bool SendKeys(string processName, List<InputKeys> inputKeys)
+        public static bool SendKeys(string processName, string? windowTitle, List<InputKeys> inputKeys)
         {
-            Log($"Sending text to process {processName}");
+            Log($"Sending text to process {processName} - {windowTitle}");
 
             // Store original foreground window
             IntPtr originalForegroundWindow = GetForegroundWindow();
@@ -123,7 +127,7 @@ namespace ClaudeTools.Toolize
 
             IntPtr mainWindowHandle = targetProcess.MainWindowHandle;
 
-            if (mainWindowHandle == IntPtr.Zero)
+            if (windowTitle is not null || mainWindowHandle == IntPtr.Zero)
             {
                 var foundHandles = new List<IntPtr>();
                 bool EnumWindowsCallback(IntPtr handle, IntPtr lParam)
@@ -136,15 +140,43 @@ namespace ClaudeTools.Toolize
                     return true; // continue enumeration
                 }
 
-                Log("handle is invalid.");
-
-                // show all window handles for debugging
-                EnumWindows(EnumWindowsCallback, IntPtr.Zero);
-                foreach (var handle in foundHandles)
+                if (windowTitle is null)
                 {
-                    Log($"handle = {handle:X16}");
+                    Log("handle is invalid.");
+
+                    // show all window handles for debugging
+                    EnumWindows(EnumWindowsCallback, IntPtr.Zero);
+                    foreach (var handle in foundHandles)
+                    {
+                        Log($"handle = {handle:X16}");
+                    }
+                    return false;
                 }
-                return false;
+                else
+                {
+                    EnumWindows(EnumWindowsCallback, IntPtr.Zero);
+                    IntPtr found = IntPtr.Zero;
+                    foreach (var handle in foundHandles)
+                    {
+                        var title = new StringBuilder(256);
+                        GetWindowText(handle, title, title.Capacity);
+                        if (title.ToString().Contains(windowTitle))
+                        {
+                            found = handle;
+                            break;
+                        }
+                    }
+
+                    if (found != IntPtr.Zero)
+                    {
+                        mainWindowHandle = found;
+                    }
+                    else
+                    {
+                        Log($"Window '{windowTitle}' was not found.");
+                        return false;
+                    }
+                }
             }
 
             // Attach thread input to ensure focus
